@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="static/css/style.css" />
+    <link rel="icon" href="static/download.png" type="image/png" />
+    <title>Calculator</title>
+  </head>
+
+  <body>
+    <div class="Main">
+      <div class="notes" id="notes">
+        <ul id="notes-list">
+          <li>Use the "buttons" or "click" on the keyboard to input numbers and operators.</li>
+          <li>Use "Clr" button or Click "Ctrl + Backspace" to clear the input field.</li>
+          <li>Use "Del" button or Click "Backspace" to delete the last character.</li>
+          <li>Use " ** ", to calculate power. (Eg. 5**3 = 125).</li>
+          <li>
+            To calculate Factorial, enter the number followed by "!" button or Click "f" on the
+            keyboard. Supports any size up to 2,000,000!
+          </li>
+          <li>To calculate Remainder, Use "mod" button.</li>
+          <li>To check Prime number, Use "Prime" button. Supports numbers up to 10,000 digits.</li>
+          <li>Click "h" or Use "History" button to see past calculated results.</li>
+          <li>
+            Backend powered by Java Servlets with BigInteger precision and parallel computation.
+          </li>
+        </ul>
+      </div>
+      <button class="show-notes-button" onclick="toggleNotes()">Instructions</button>
+      <button class="toggle-mode dark-mode" onclick="toggleDarkMode()">Dark Mode</button>
+      <div class="calculator">
+        <div class="clock">
+          <span id="hrs"></span>:<span id="min"></span>:<span id="sec"></span>
+          <span id="ampm"></span>
+          <div id="month"></div>
+          <div id="date"></div>
+          <div id="day"></div>
+        </div>
+
+        <input type="text" placeholder="Embrace Numbers!" id="output-screen" />
+        <button title="Clear" onclick="Clear()">Clr</button>
+        <button title="Delete" onclick="Delete()">Del</button>
+        <button title="Percentage" onclick="display('%')">%</button>
+        <button title="Division" onclick="display('/')">/</button>
+        <button title="Number 7" onclick="display('7')">7</button>
+        <button title="Number 8" onclick="display('8')">8</button>
+        <button title="Number 9" onclick="display('9')">9</button>
+        <button title="Multiplication" onclick="display('*')">*</button>
+        <button title="Number 4" onclick="display('4')">4</button>
+        <button title="Number 5" onclick="display('5')">5</button>
+        <button title="Number 6" onclick="display('6')">6</button>
+        <button title="Subtraction" onclick="display('-')">-</button>
+        <button title="Number 1" onclick="display('1')">1</button>
+        <button title="Number 2" onclick="display('2')">2</button>
+        <button title="Number 3" onclick="display('3')">3</button>
+        <button title="Addition" onclick="display('+')">+</button>
+        <button title="Decimal Point" onclick="display('.')">.</button>
+        <button title="Number 0" onclick="display('0')">0</button>
+        <button
+          id="factorial-button"
+          title="Factorial (any size up to 2,000,000)"
+          onclick="calculateFactorial()"
+        >
+          !
+        </button>
+        <button id="mod-button" title="Remainder" onclick="calculateMod()">Mod</button>
+        <button id="prime-button" title="Check Prime (up to 10,000 digits)" onclick="checkPrime()">
+          Prime
+        </button>
+        <button title="Equal" onclick="Calculate()" class="equal">=</button>
+        <button title="History" class="history-button" onclick="displayHistory()">History</button>
+      </div>
+
+      <div id="history-bar" class="history-bar">
+        <button class="clear-history-btn" onclick="clearHistory()">Clear History</button>
+      </div>
+    </div>
+
+    <script src="static/js/functions.js"></script>
+  </body>
+
+  <a href="https://github.com/srikanth-rl" target="_blank" class="developer-link"
+    >About Developer</a
+  >
+</html>

@@ -1,0 +1,379 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: sans-serif;
+    outline: none;
+}
+
+.Main {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+.calculator {
+    background-color: #ecf0f3;
+    padding: 15px;
+    border-radius: 30px;
+    position: absolute;
+    box-shadow: inset 5px 5px 18px, 10px 10px 12px rgba(0, 0, 0, .16);
+    display: grid;
+    grid-template-columns: repeat(4, minmax(70px, 1fr));
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+#prime-button {
+    font-size: 22px;
+    font-weight: bold;
+    font-family: Italy;
+    width: 60px;
+    height: 50px;
+}
+
+#factorial-button {
+    font-family: Italy;
+    font-weight: bold;
+    font-size: 25px;
+}
+
+#mod-button {
+    font-size: 22px;
+    font-weight: bold;
+    font-family: Italy;
+}
+
+.notes {
+    display: none;
+    list-style-type: square;
+    font-size: larger;
+    position: absolute;
+    top: 80px;
+    left: 28px;
+    background-color: #f2f2f2;
+    padding: 19px;
+    border-radius: 15px;
+    overflow-wrap: break-word;
+    width: 435px;
+    font-family: "Comic Sans MS", cursive;
+    z-index: 10;
+}
+
+.show-notes-button {
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.1);
+    border: 2px solid blue;
+    padding: 3px 3px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: black;
+    position: absolute;
+    width: fit-content;
+    top: 15px;
+    left: 10px;
+}
+
+.show-notes-button:hover {
+    color: black;
+    background-color: lightseagreen;
+}
+
+.notes li {
+    color: blue;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 5px;
+}
+
+.toggle-mode {
+    background-color: black;
+    background-color: #f2f2f2;
+    border: 2px solid blue;
+    padding: 3px 3px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    color: black;
+    position: absolute;
+    width: fit-content;
+    border-radius: 10px;
+    bottom: 10px;
+    left: 10px;
+}
+
+.dark-mode {
+    background-color: black;
+    color: white;
+}
+
+.toggle-mode:hover {
+    color: red;
+}
+
+input {
+    grid-column: span 4;
+    height: 75px;
+    width: 260px;
+    background-color: #ecf0f3;
+    box-shadow: inset -5px -5px 12px #fff, inset 5px 5px 12px rgba(0, 0, 0, .16);
+    border: none;
+    border-radius: 50px;
+    color: green;
+    font-size: 25px;
+    text-align: end;
+    margin: auto;
+    margin-top: 40px;
+    margin-bottom: 30px;
+    padding: 20px;
+}
+
+button {
+    height: 45px;
+    width: 45px;
+    background-color: #ecf0f3;
+    box-shadow: inset -25px -25px 12px #fff, inset 5px 5px 12px rgba(0, 0, 0, .16);
+    border: none;
+    border-radius: 50%;
+    color: black;
+    font-size: 25px;
+    margin: 8px;
+    cursor: pointer;
+}
+
+.equal {
+    position: absolute;
+    font-size: 40px;
+    text-align: center;
+    font-weight: bold;
+    font-family: Italy;
+    width: 60px;
+    height: 51px;
+    bottom: 15px;
+    padding: 6px;
+    right: 169px;
+}
+
+.history-icon {
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.history-button {
+    position: absolute;
+    bottom: 20px;
+    font-family: Italy;
+    right: 25px;
+    font-size: 25px;
+    font-weight: bold;
+    width: fit-content;
+    padding: 11px 23px;
+    border-radius: 10px;
+}
+
+.history-bar {
+    color: blue;
+    width: 400px;
+    position: absolute;
+    top: 200px;
+    right: 40px;
+    display: none;
+    max-height: 340px;
+    overflow-y: auto;
+    padding: 10px;
+    background-color: #f2f2f2;
+    border-radius: 10px;
+    font-family: "Comic Sans MS", cursive;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
+    overflow-wrap: break-word;
+}
+
+.history-bar.visible {
+    display: block;
+}
+
+.history-bar div {
+    padding: 5px;
+    overflow-x: hidden;
+    max-width: 100%;
+    border-bottom: 1px solid #ccc;
+}
+
+.clear-history-btn {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 6px;
+    border-radius: 8px;
+    font-size: 14px;
+    height: auto;
+    background-color: #ffdddd;
+    color: darkred;
+    border: 1px solid #ffaaaa;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+.clear-history-btn:hover {
+    background-color: #ffbbbb;
+}
+
+.clock {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    font-size: larger;
+    font-family: "Times New Roman", Times, serif;
+    border-bottom: 2px solid #ccc;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    background-color: lightseagreen;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+#day,
+#month,
+#date {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: larger;
+    font-family: "Comic Sans MS", cursive;
+    background-color: lightseagreen;
+    border-bottom: 2px solid #ccc;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 2;
+    padding: 5px;
+    border-radius: 10px;
+}
+
+.developer-link {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: blue;
+    text-decoration: underline;
+}
+
+/* ── Loading spinner overlay ── */
+.loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,0.4);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+}
+.loading-overlay.active {
+    display: flex;
+}
+.spinner {
+    width: 36px;
+    height: 36px;
+    border: 4px solid #ccc;
+    border-top-color: green;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Dark mode body override ── */
+body.dark-mode {
+    background-color: #1a1a2e;
+}
+body.dark-mode .Main {
+    background-color: #1a1a2e;
+}
+body.dark-mode .calculator {
+    background-color: #2d2d44;
+    box-shadow: inset 5px 5px 18px #1a1a2e, 10px 10px 12px rgba(0,0,0,.4);
+}
+body.dark-mode button {
+    background-color: #2d2d44;
+    color: #e0e0e0;
+    box-shadow: inset -3px -3px 8px #3a3a55, inset 3px 3px 8px #1a1a2e;
+}
+body.dark-mode input {
+    background-color: #2d2d44;
+    color: #7fffb2;
+    box-shadow: inset -3px -3px 8px #3a3a55, inset 3px 3px 8px #1a1a2e;
+}
+body.dark-mode .notes {
+    background-color: #2d2d44;
+    color: #aaaaff;
+}
+body.dark-mode .notes li {
+    color: #aaaaff;
+    border-bottom-color: #444466;
+}
+body.dark-mode .history-bar {
+    background-color: #2d2d44;
+    color: #aaaaff;
+}
+body.dark-mode .history-bar div {
+    border-bottom-color: #444466;
+}
+body.dark-mode .show-notes-button,
+body.dark-mode .toggle-mode {
+    background-color: #2d2d44;
+    color: #aaaaff;
+    border-color: #aaaaff;
+}
+body.dark-mode .developer-link {
+    color: #aaaaff;
+}
+
+@media only screen and (max-width: 600px) {
+    .show-notes-button {
+        display: none;
+    }
+    .toggle-mode {
+        top: 10px;
+        bottom: auto;
+        left: 10px;
+    }
+    .toggle-mode:hover {
+        color: lightseagreen;
+    }
+    .developer-link {
+        font-size: 15px;
+        font-family: Arial, Helvetica, sans-serif;
+    }
+    .calculator {
+        top: 200px;
+    }
+    html {
+        overflow: hidden;
+    }
+    .history-bar {
+        color: blue;
+        width: 375px;
+        position: absolute;
+        top: 170px;
+        right: 35px;
+        display: none;
+        max-height: 410px;
+        overflow-y: auto;
+        padding: 10px;
+        background-color: #f2f2f2;
+        border-radius: 10px;
+        font-family: "Comic Sans MS", cursive;
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
+        overflow-wrap: break-word;
+    }
+}
+
+@media only screen and (min-width: 768px) {
+    .developer-link {
+        font-size: 20px;
+    }
+}
