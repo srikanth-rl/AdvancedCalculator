@@ -19,18 +19,20 @@
           <li>Use " ** ", to calculate power. (Eg. 5**3 = 125).</li>
           <li>
             To calculate Factorial, enter the number followed by "!" button or Click "f" on the
-            keyboard. Supports any size up to 2,000,000!
+            keyboard. Supports any size up to 1,000,000!
           </li>
           <li>To calculate Remainder, Use "mod" button.</li>
-          <li>To check Prime number, Use "Prime" button. Supports numbers up to 15,000 digits.</li>
+          <li>To check Prime number, Use "Prime" button. Supports numbers up to 10,000 digits.</li>
           <li>Click "h" or Use "History" button to see past calculated results.</li>
           <li>
             Backend powered by Java Servlets with BigInteger precision and parallel computation.
           </li>
         </ul>
       </div>
+
       <button class="show-notes-button" onclick="toggleNotes()">Instructions</button>
       <button class="toggle-mode dark-mode" onclick="toggleDarkMode()">Dark Mode</button>
+
       <div class="calculator">
         <div class="clock">
           <span id="hrs"></span>:<span id="min"></span>:<span id="sec"></span>
@@ -59,17 +61,9 @@
         <button title="Addition" onclick="display('+')">+</button>
         <button title="Decimal Point" onclick="display('.')">.</button>
         <button title="Number 0" onclick="display('0')">0</button>
-        <button
-          id="factorial-button"
-          title="Factorial (any size up to 2,000,000)"
-          onclick="calculateFactorial()"
-        >
-          !
-        </button>
+        <button id="factorial-button" title="Factorial (any size up to 1,000,000)" onclick="calculateFactorial()">!</button>
         <button id="mod-button" title="Remainder" onclick="calculateMod()">Mod</button>
-        <button id="prime-button" title="Check Prime (up to 15,000 digits)" onclick="checkPrime()">
-          Prime
-        </button>
+        <button id="prime-button" title="Check Prime (up to 10,000 digits)" onclick="checkPrime()">Prime</button>
         <button title="Equal" onclick="Calculate()" class="equal">=</button>
         <button title="History" class="history-button" onclick="displayHistory()">History</button>
       </div>
@@ -82,7 +76,5 @@
     <script src="static/js/functions.js"></script>
   </body>
 
-  <a href="https://github.com/srikanth-rl" target="_blank" class="developer-link"
-    >About Developer</a
-  >
+  <a href="https://github.com/srikanth-rl" target="_blank" class="developer-link">About Developer</a>
 </html>

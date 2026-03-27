@@ -129,6 +129,15 @@ input {
     margin-top: 40px;
     margin-bottom: 30px;
     padding: 20px;
+    
+    /* ADD THESE TO FIX THE VISIBILITY ISSUE */
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+/* Hide scrollbar but allow scrolling */
+input::-webkit-scrollbar {
+    display: none;
 }
 
 button {
@@ -199,10 +208,13 @@ button {
 }
 
 .history-bar div {
-    padding: 5px;
-    overflow-x: hidden;
-    max-width: 100%;
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-wrap: break-word;
+    padding: 10px 5px;
     border-bottom: 1px solid #ccc;
+    max-height: 200px; /* Limits any single result from taking up the whole sidebar */
+    overflow-y: auto;   /* Adds a small scrollbar inside the history item if it's too long */
 }
 
 .clear-history-btn {
@@ -213,7 +225,6 @@ button {
     border-radius: 8px;
     font-size: 14px;
     height: auto;
-    background-color: #ffdddd;
     color: darkred;
     border: 1px solid #ffaaaa;
     box-shadow: none;
@@ -642,4 +653,66 @@ body.dark-mode .calc-notice--info {
     background: #1a1e30;
     border-color: #5566aa;
     color: #aabbff;
+}
+/* Container for each history entry */
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 10px 5px;
+    border-bottom: 1px solid #ccc;
+    gap: 10px;
+    /* This allows the item itself to be scrollable if the JS formats it so */
+    max-height: 250px; 
+    overflow-y: auto;
+    position: relative;
+}
+
+.history-content {
+    flex: 1;
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-wrap: break-word;
+    font-family: "Comic Sans MS", cursive;
+}
+
+/* STICKY COPY BUTTON: stays visible while scrolling long results */
+.copy-history-btn {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: #e0e0e0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    margin: 0;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+/* Mobile Responsiveness Updates */
+@media only screen and (max-width: 600px) {
+    .history-bar {
+        width: 92vw;
+        right: 4vw;
+        left: 4vw;
+        top: 140px;
+        max-height: 70vh;
+    }
+    .copy-history-btn {
+        width: 44px; /* Larger for mobile touch */
+        height: 44px;
+    }
+}
+
+/* Dark Mode support for sticky button */
+body.dark-mode .copy-history-btn {
+    background: #3a3a55;
+    border-color: #555577;
+    color: #fff;
 }
