@@ -1,106 +1,90 @@
-# CalculatorApp — Java Servlet Backend
+# 🧮 Calculator App
 
-A direct port of the original JS calculator to a **Java + Jakarta Servlet** backend,
-keeping the identical HTML/CSS frontend structure.
-
----
-
-## Project Structure
-
-```
-CalculatorApp/
-├── pom.xml                              ← Maven build (Java 17, Tomcat 10+)
-└── src/main/
-    ├── java/com/calculator/servlet/
-    │   ├── CalculatorServlet.java        ← POST /calculate  (add/sub/mul/div/mod/factorial/prime/percent)
-    │   ├── ExpressionServlet.java        ← POST /evaluate   (full infix expression evaluator)
-    │   └── HistoryServlet.java           ← GET|POST /history (session-based history)
-    └── webapp/
-        ├── index.html                   ← Same layout as original
-        ├── WEB-INF/web.xml
-        └── static/
-            ├── css/style.css            ← Same styles as original + dark-mode body overrides
-            ├── js/functions.js          ← All logic now calls Java servlets via fetch()
-            └── download.png             ← Favicon
-
-```
+A powerful arbitrary-precision calculator web application built with Java Servlets and vanilla JavaScript. 
+Supports massive numbers on any operations — factorials up to 3 million, prime checks up to 10,000 digits, and other expressions also supported using scientific notation.
 
 ---
 
-## API Endpoints
+## ✨ Features
 
-### `POST /evaluate`
-Evaluates a full infix expression (used by the `=` button).
-
-| Param        | Example         |
-|--------------|-----------------|
-| `expression` | `5+3*2-1`       |
-
-Returns `{ "success": true, "result": "10" }`
-
----
-
-### `POST /calculate`
-Handles individual operations.
-
-| `action`    | Required params          | Notes                              |
-|-------------|--------------------------|-------------------------------------|
-| `add`       | `num1`, `num2`           |                                     |
-| `subtract`  | `num1`, `num2`           |                                     |
-| `multiply`  | `num1`, `num2`           |                                     |
-| `divide`    | `num1`, `num2`           | Throws on divide-by-zero            |
-| `mod`       | `num1`, `num2`           | True mathematical mod (BigInteger)  |
-| `factorial` | `num1`                   | Up to 5-digit input; uses BigInteger|
-| `prime`     | `num1`                   | Up to 17-digit input                |
-| `percent`   | `num1`                   | Returns num1 / 100                  |
-
-Returns `{ "success": true, "result": "..." }` or `{ "success": false, "error": "..." }`
+- **Basic Arithmetic** — Addition, Subtraction, Multiplication, Division, Percentage
+- **Power** — Use `**` syntax (e.g. `5**3 = 125`)
+- **Factorial** — Supports any number up to 3,000,000 (3 Millions)
+- **Modulo (Remainder)** — Two-input remainder operation
+- **GCD** — Greatest Common Divisor of two numbers
+- **LCM** — Least Common Multiple of two numbers
+- **Prime Check** — Supports any length up to 10,000 digits
+- **Scientific Notation** — `1e9`, `1.5e+10`, `2E-3` all supported
+- **Calculation History** — Persisted per session, viewable in sidebar
+- **Copy Results** — Copy any result from history with one click
+- **Dark / Light Mode** — Toggle anytime; dark mode default on mobile
+- **Clock** — Live clock with date displayed on desktop
+- **Keyboard Shortcuts** — Full keyboard support for all operations
+- **Responsive** — Works on desktop, tablet, and mobile
 
 ---
 
-### `GET /history`
-Returns session history as JSON array.
+## 📋 History
 
-### `POST /history`
-- Add entry: params `expression`, `result`
-- Clear all: param `action=clear`
+- Stores up to **100 entries** per session
+- Results longer than **5,000 characters** are truncated in storage with a message: `… [remaining digits hidden — use desktop to copy full result] …`
+- Full results available for copy on desktop via in-memory cache
+- History is cleared when the user clicks **Clear History** or the session expires (default: 30 minutes)
 
 ---
 
-## Build & Deploy
+## ⌨️ Keyboard Shortcuts
+
+| Key                 | Action                                |
+|---------------------|---------------------------------------|
+| `Enter`             | Calculate (`=`)                       |
+| `Backspace`         | Delete cursor pointed / last character|
+| `Ctrl + Backspace`  | Clear input                           |
+| `F`                 | Factorial                             |
+| `G`                 | GCD                                   |
+| `L`                 | LCM                                   |
+| `M`                 | Mod (Remainder)                       |
+| `P`                 | Prime Check                           |
+| `H`                 | View History                          |
+
+---
+
+## 🔧 Tech Stack
+
+| Layer     | Technology                            |
+|-----------|---------------------------------------|
+| Backend   | Java 25, Jakarta Servlet 6.1          |
+| Compute   | Virtual Threads (`Thread.ofVirtual()`)|
+| Math      | `BigInteger` / `BigDecimal`           |
+| Frontend  | HTML, CSS, JavaScript                 |
+| Server    | Apache Tomcat 11+                     |
+| Deploy    | Oracle Cloud                          |
+
+---
+
+## 🚀 Setup & Deployment
 
 ### Prerequisites
-- Java 17+
-- Maven 3.8+
-- Apache Tomcat 10.x (Jakarta EE 10)
+- Java 21+
+- Apache Tomcat 10+
+- Maven (optional)
 
-### Build
+### Build & Deploy
 ```bash
-cd CalculatorApp
+# Package as WAR
 mvn clean package
-```
-This produces `target/CalculatorApp.war`.
 
-### Deploy to Tomcat
-```bash
+# Copy to Tomcat
 cp target/CalculatorApp.war $TOMCAT_HOME/webapps/
-# or deploy to ROOT for no context path:
-cp target/CalculatorApp.war $TOMCAT_HOME/webapps/ROOT.war
+
+# Start Tomcat
+$TOMCAT_HOME/bin/startup.sh
 ```
 
-Then open: `http://localhost:8080/CalculatorApp/`  
-(or `http://localhost:8080/` if deployed as ROOT)
+Then open: `http://localhost:8080/CalculatorApp`
 
 ---
 
-## Key Design Decisions
+## 👨‍💻 Creator
 
-| Feature          | Original (JS)                  | This project (Java)                            |
-|------------------|--------------------------------|------------------------------------------------|
-| Arithmetic eval  | `eval(expression)`             | `ExpressionServlet` — shunting-yard algorithm  |
-| BigInt math      | JS `BigInt`                    | `java.math.BigInteger` + `BigDecimal`          |
-| Factorial        | JS BigInt loop                 | Java BigInteger loop, result length included   |
-| Prime check      | JS naive trial division        | Java BigInteger trial division (same algorithm)|
-| Mod              | JS `BigInt % BigInt`           | Java `BigInteger.mod()` (true mathematical mod)|
-| History          | JS in-memory `history[]`       | Server-side `HttpSession` attribute            |
-| Dark mode        | CSS class toggle               | Same — pure CSS class toggle                   |
+For feedback or issues → <a href="https://srikanthr.in/#contact" target="_blank" rel="noopener noreferrer">Contact</a>

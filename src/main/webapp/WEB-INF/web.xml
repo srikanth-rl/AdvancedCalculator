@@ -12,6 +12,15 @@
     </welcome-file-list>
 
     <filter>
+        <filter-name>HistoryAccessFilter</filter-name>
+        <filter-class>com.calculator.filter.HistoryAccessFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>HistoryAccessFilter</filter-name>
+        <url-pattern>/history</url-pattern>
+    </filter-mapping>
+
+    <filter>
         <filter-name>CORSFilter</filter-name>
         <filter-class>org.apache.catalina.filters.CorsFilter</filter-class>
         <init-param>
@@ -23,7 +32,6 @@
             <param-value>GET, POST, OPTIONS</param-value>
         </init-param>
     </filter>
-
     <filter-mapping>
         <filter-name>CORSFilter</filter-name>
         <url-pattern>/*</url-pattern>
