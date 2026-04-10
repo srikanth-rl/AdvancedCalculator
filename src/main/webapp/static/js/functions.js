@@ -1,5 +1,5 @@
 // ─── Context path ─────────────────────────────────────────────────────────────
-const CTX = '/CalculatorApp';
+const CTX = '';
 const EVALUATE_URL  = CTX + '/evaluate';
 const CALCULATE_URL = CTX + '/calculate';
 const HISTORY_URL   = CTX + '/history';
@@ -509,7 +509,7 @@ async function checkPrime() {
     var cleaned;
 
     try {
-        var userInput = await showInputModal('Check Prime Number', 'Enter a number');
+        var userInput = await showInputModal('Check Prime Number', 'Enter any number upto 7,000 digits length (e.g. 7, 1000000007, etc.)');
         if (userInput === null) return;
         cleaned = userInput.replace(/,/g, '').trim();
         if (!cleaned) return;
@@ -635,6 +635,16 @@ async function displayHistory() {
     if (!isHistoryDirty && historyCache) { renderHistory(historyCache); return; }
     if (isHistoryLoading) return;
 
+    // ─── Show inline loading skeleton ────────────────────────────────────────
+    historyBar.innerHTML =
+        '<div class="history-scroll-wrapper" style="padding:12px 10px;">' +
+            '<div class="history-loading-row"></div>' +
+            '<div class="history-loading-row" style="width:75%;"></div>' +
+            '<div class="history-loading-row"></div>' +
+            '<div class="history-loading-row" style="width:60%;"></div>' +
+            '<div class="history-loading-row"></div>' +
+        '</div>';
+
     isHistoryLoading = true;
     setLoading(true);
 
@@ -696,7 +706,7 @@ function renderHistory(historyArray) {
                     var primeNum = extractPrimeNumber(entry.expression) || entry.result;
                     inputDisplay = 'checkPrime{' + primeNum + '}';
                 } else {
-                    inputDisplay = 'checkPrime{...} → use 📋 to copy full input';
+                    inputDisplay = 'checkPrime{...} → click ⬇️ to download full input';
                 }
                 contentSpan.textContent = inputDisplay + verdictLine + digitLine;
             } else {
@@ -708,74 +718,99 @@ function renderHistory(historyArray) {
             var btnCol = document.createElement('div');
             btnCol.className = 'history-btn-col';
 
-            var copyBtn = document.createElement('button');
-            copyBtn.className = 'copy-history-btn';
-            copyBtn.innerHTML = '&#128203;';
-            copyBtn.title = 'Copy full result';
-            (function(e, isPrime, btn) {
-                btn.onclick = function(ev) {
-                    ev.stopPropagation();
-                    ev.preventDefault();
+            // ─── Resolve full text for this entry ────────────────────────────
+            (function(e, isPrime, digits) {
+                var cacheKey = isPrime
+                    ? ('checkPrime{' + (extractPrimeNumber(e.expression) || '') + '}')
+                    : e.expression;
 
-                    var cacheKey = isPrime
-                        ? ('checkPrime{' + (extractPrimeNumber(e.expression) || '') + '}')
-                        : e.expression;
-                    var copyText;
+                function resolveFullText() {
                     if (isPrime) {
                         var cached = _fullResultCache[cacheKey];
-                        if (cached) {
-                            copyText = cached;
-                        } else {
-                            var storedNum    = extractPrimeNumber(e.expression) || e.result;
-                            var storedVerdict = '';
-                            var pi = (e.digitsLength || '').indexOf('|');
-                            if (pi !== -1) storedVerdict = e.digitsLength.substring(pi + 1);
-                            copyText = storedVerdict ? (storedNum + '\n' + storedVerdict) : storedNum;
-                        }
+                        if (cached) return cached;
+                        var storedNum = extractPrimeNumber(e.expression) || e.result;
+                        var storedVerdict = '';
+                        var pi = (e.digitsLength || '').indexOf('|');
+                        if (pi !== -1) storedVerdict = e.digitsLength.substring(pi + 1);
+                        return storedVerdict ? (storedNum + '\n' + storedVerdict) : storedNum;
                     } else {
-                        var isTouchDevice = navigator.maxTouchPoints > 0;
                         var cached = _fullResultCache[cacheKey];
+                        return (cached) ? cached : e.result;
+                    }
+                }
 
-                        if (!isTouchDevice && cached) {
-                            copyText = cached;
-                        } else {
-                            copyText = e.result;
+                // ─── Download button (shown when digits > 1000) ───────────────
+                var DOWNLOAD_THRESHOLD = 1000;
+                var useDownload = digits > DOWNLOAD_THRESHOLD;
+
+                if (useDownload) {
+                    var dlBtn = document.createElement('button');
+                    dlBtn.className = 'copy-history-btn';
+                    dlBtn.innerHTML = '⬇️';
+                    dlBtn.title = 'Download full result as .txt';
+                    dlBtn.onclick = function(ev) {
+                        ev.stopPropagation();
+                        ev.preventDefault();
+                        var text = resolveFullText();
+                        if (!text) { showNotice('Nothing to download.', 'error'); return; }
+                        var label = isPrime
+                            ? ('prime_' + (extractPrimeNumber(e.expression) || 'result').substring(0, 20))
+                            : e.expression.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+                        var filename = 'calc_' + label + '.txt';
+                        var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+                        var url  = URL.createObjectURL(blob);
+                        var a    = document.createElement('a');
+                        a.href     = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        var prev = dlBtn.innerHTML;
+                        dlBtn.innerHTML = '&#9989;';
+                        setTimeout(function() { dlBtn.innerHTML = prev; }, 1500);
+                    };
+                    btnCol.appendChild(dlBtn);
+
+                } else {
+                    // ─── Copy button (shown when digits <= 1000) ─────────────
+                    var copyBtn = document.createElement('button');
+                    copyBtn.className = 'copy-history-btn';
+                    copyBtn.innerHTML = '&#128203;';
+                    copyBtn.title = 'Copy full result';
+                    copyBtn.onclick = function(ev) {
+                        ev.stopPropagation();
+                        ev.preventDefault();
+                        var copyText = resolveFullText();
+                        if (!copyText) { showNotice('Nothing to copy.', 'error'); return; }
+
+                        function onSuccess() {
+                            var prev = copyBtn.innerHTML;
+                            copyBtn.innerHTML = '&#9989;';
+                            setTimeout(function() { copyBtn.innerHTML = prev; }, 1500);
                         }
-                    }
-
-                    if (!copyText) { showNotice('Nothing to copy.', 'error'); return; }
-
-
-                    function onSuccess() {
-                        var prev = btn.innerHTML;
-                        btn.innerHTML = '&#9989;';
-                        setTimeout(function() { btn.innerHTML = prev; }, 1500);
-                    }
-
-                    function onFail() {
-                        showNotice('Copy failed — please long-press and copy manually.', 'error');
-                    }
-
-                    function execCopy() {
-                        var ta = document.createElement('textarea');
-                        ta.value = copyText;
-                        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;width:1px;height:1px;';
-                        document.body.appendChild(ta);
-                        ta.focus(); ta.select();
-                        try { document.execCommand('copy') ? onSuccess() : onFail(); }
-                        catch (_) { onFail(); }
-                        document.body.removeChild(ta);
-                    }
-
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(copyText).then(onSuccess).catch(execCopy);
-                    } else {
-                        execCopy();
-                    }
-                };
-            })(entry, isPrimeEntry, copyBtn);
-
-            btnCol.appendChild(copyBtn);
+                        function onFail() {
+                            showNotice('Copy failed — please long-press and copy manually.', 'error');
+                        }
+                        function execCopy() {
+                            var ta = document.createElement('textarea');
+                            ta.value = copyText;
+                            ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;width:1px;height:1px;';
+                            document.body.appendChild(ta);
+                            ta.focus(); ta.select();
+                            try { document.execCommand('copy') ? onSuccess() : onFail(); }
+                            catch (_) { onFail(); }
+                            document.body.removeChild(ta);
+                        }
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(copyText).then(onSuccess).catch(execCopy);
+                        } else {
+                            execCopy();
+                        }
+                    };
+                    btnCol.appendChild(copyBtn);
+                }
+            })(entry, isPrimeEntry, totalDigits);
             itemDiv.appendChild(contentSpan);
             itemDiv.appendChild(btnCol);
             scrollWrapper.appendChild(itemDiv);
@@ -808,7 +843,7 @@ function truncateText(str, headLen, tailLen, totalDigits) {
     var hidden = total - headLen - tailLen;
 
     var middleMsg = isMobile()
-        ? '\n  ... ' + hidden.toLocaleString() + ' digits hidden — use desktop to copy full result ...\n'
+        ? '\n  ... ' + hidden.toLocaleString() + ' digits hidden — click ⬇️ to download full result ...\n'
         : '\n  ... ' + hidden.toLocaleString() + ' digits hidden ...\n';
 
     return (
@@ -880,30 +915,7 @@ document.addEventListener('keydown', function(event) {
     }
 });
 
-// ─── Global Offset Variable ──────────────────────────────────────────────────
-let timeOffset = 0; // Difference between system time and VPN time
-
-async function syncWithVPN() {
-    try {
-        // Fetch time based on your current (VPN) IP
-        const response = await fetch('https://worldtimeapi.org/api/ip');
-        const data = await response.json();
-        
-        // Calculate the difference between the API time and your local system time
-        const vpnTime = new Date(data.datetime);
-        const systemTime = new Date();
-        timeOffset = vpnTime.getTime() - systemTime.getTime();
-        
-        console.log("Time synced with VPN location:", data.timezone);
-    } catch (err) {
-        console.error("Could not sync time, defaulting to system time.", err);
-    }
-}
-
-// Sync immediately on load, and maybe every 5 minutes in case VPN toggles
-syncWithVPN();
-setInterval(syncWithVPN, 300000); 
-
+const timeOffset = 0;
 function clock() {
     // Get current system time and add the offset
     const now = new Date(new Date().getTime() + timeOffset);

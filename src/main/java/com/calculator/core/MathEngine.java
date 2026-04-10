@@ -46,8 +46,8 @@ public final class MathEngine {
 
     // ─── LRU cache ────────────────────────────────────────────────────────────
 
-    private static final int  MAX_CACHE_ENTRIES = 500;
-    private static final long MAX_CACHE_BYTES   = 200L * 1024 * 1024;
+    private static final int  MAX_CACHE_ENTRIES = 10_000;
+    private static final long MAX_CACHE_BYTES   = 2056L * 1024 * 1024; // ~2 GB
     private static volatile long estimatedCacheBytes = 0;
 
     private static final Map<String, String> CACHE = Collections.synchronizedMap(
@@ -86,9 +86,9 @@ public final class MathEngine {
             estimatedCacheBytes = 0;
             rt.gc();
             free = rt.maxMemory() - (rt.totalMemory() - rt.freeMemory());
-            if (free < 50L * 1024 * 1024) {
+            if (free < 100L * 1024 * 1024) {
                 throw new IllegalStateException(
-                    "Server is low on memory. Please try a smaller " + operation +
+                    "Server is low on memory. Please try smaller inputs" + operation +
                     " or wait a moment and retry.");
             }
         }
@@ -99,13 +99,13 @@ public final class MathEngine {
         new ForkJoinPool(Runtime.getRuntime().availableProcessors());
 
     // ─── Thresholds ───────────────────────────────────────────────────────────
-    private static final int    KARATSUBA_THRESHOLD = 70;
-    private static final int    FACTORIAL_LEAF      = 128;
+    private static final int    KARATSUBA_THRESHOLD = 100;
     private static final double LOG10_2             = Math.log10(2.0);
     private static final int    DIV_BASE_PRECISION  = 30;
-
+    
+    private static final int    FACTORIAL_LEAF      = 1024;
     private static final long MAX_FACTORIAL    = 3_000_000L;
-    private static final int  MAX_PRIME_DIGITS = 10_000;
+    private static final int  MAX_PRIME_DIGITS = 7_000;
 
     private MathEngine() {}
 
@@ -294,7 +294,7 @@ public final class MathEngine {
     public static String checkPrime(String numStr, CancellationToken tok) {
         String cleaned = numStr.trim().replace(",", "");
         if (cleaned.length() > MAX_PRIME_DIGITS) throw new IllegalArgumentException(
-            "Input is too large. Prime check supports up to 10,000 digits " +
+            "Input is too large. Prime check supports up to 7,000 digits " +
             "(your input: " + cleaned.length() + " digits). Please reduce and try again.");
         String key    = "prime:" + cleaned;
         String cached = CACHE.get(key); if (cached != null) return cached;
@@ -342,11 +342,25 @@ public final class MathEngine {
         return res;
     }
 
+    private static final int[] SMALL_PRIMES = {
+        3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,
+        79,83,89,97,101,103,107,109,113,127,131,137,139,149,151,157,
+        163,167,173,179,181,191,193,197,199,211,223,227,229,233,239,
+        241,251,257,263,269,271,277,281,283,293,307,311,313,317,331,
+        337,347,349,353,359,367,373,379,383,389,397,401,409,419,421,
+        431,433,439,443,449,457,461,463,467,479,487,491,499
+    };
+
     private static boolean isPrime(BigInteger n) {
         if (n.compareTo(BigInteger.TWO) < 0) return false;
         if (n.equals(BigInteger.TWO) || n.equals(BigInteger.valueOf(3))) return true;
-        if (!n.testBit(0)) return false;
-        return n.isProbablePrime(20);
+        if (!n.testBit(0)) return false; // Even numbers greater than 2 are not prime
+        for (int p : SMALL_PRIMES) {
+            BigInteger bp = BigInteger.valueOf(p);
+            if (n.equals(bp)) return true;
+            if (n.mod(bp).signum() == 0) return false;
+        }
+        return n.isProbablePrime(8);
     }
 
     // ─── Parallel Factorial ───────────────────────────────────────────────────

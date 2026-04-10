@@ -1,7 +1,7 @@
 # 🧮 Calculator App
 
 A powerful arbitrary-precision calculator web application built with Java Servlets and vanilla JavaScript. 
-Supports massive numbers on any operations — factorials up to 3 million, prime checks up to 10,000 digits, and other expressions also supported using scientific notation.
+Supports massive numbers on any operations — factorials up to 2 million, prime checks up to 7,000 digits, and other expressions also supported using scientific notation.
 
 ---
 
@@ -13,10 +13,11 @@ Supports massive numbers on any operations — factorials up to 3 million, prime
 - **Modulo (Remainder)** — Two-input remainder operation
 - **GCD** — Greatest Common Divisor of two numbers
 - **LCM** — Least Common Multiple of two numbers
-- **Prime Check** — Supports any length up to 10,000 digits
+- **Prime Check** — Supports any length up to 7,000 digits
 - **Scientific Notation** — `1e9`, `1.5e+10`, `2E-3` all supported
 - **Calculation History** — Persisted per session, viewable in sidebar
 - **Copy Results** — Copy any result from history with one click
+- **Download Results** — Download full result as `.txt` for large outputs (1,000+ digits)
 - **Dark / Light Mode** — Toggle anytime; dark mode default on mobile
 - **Clock** — Live clock with date displayed on desktop
 - **Keyboard Shortcuts** — Full keyboard support for all operations
@@ -75,13 +76,13 @@ Supports massive numbers on any operations — factorials up to 3 million, prime
 mvn clean package
 
 # Copy to Tomcat
-cp target/CalculatorApp.war $TOMCAT_HOME/webapps/
+cp target/ROOT.war $TOMCAT_HOME/webapps/
 
 # Start Tomcat
 $TOMCAT_HOME/bin/startup.sh
 ```
 
-Then open: `http://localhost:8080/CalculatorApp`
+Then open: `http://localhost:8080/`
 
 ---
 

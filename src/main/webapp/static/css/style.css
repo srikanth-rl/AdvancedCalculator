@@ -1022,3 +1022,23 @@ button:focus-visible {
     .scroll-history-btn { width: 40px; height: 38px; font-size: 16px; }
     .history-content { font-size: 12px; }
 }
+/* ─── History loading skeleton ──────────────────────────────────── */
+@keyframes shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+}
+
+.history-loading-row {
+    height: 14px;
+    width: 100%;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+    background-size: 600px 100%;
+    animation: shimmer 1.4s infinite linear;
+}
+
+body.dark-mode .history-loading-row {
+    background: linear-gradient(90deg, #2a2a3a 25%, #3a3a4e 50%, #2a2a3a 75%);
+    background-size: 600px 100%;
+}
