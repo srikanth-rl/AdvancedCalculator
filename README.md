@@ -1,7 +1,7 @@
 # 🧮 Calculator App
 
 A powerful arbitrary-precision calculator web application built with Java Servlets and vanilla JavaScript. 
-Supports massive numbers on any operations — factorials up to 2 million, prime checks up to 7,000 digits, and other expressions also supported using scientific notation.
+Supports massive numbers on any operations — factorials up to 3 million, prime checks up to 7,000 digits, and other expressions also supported using scientific notation.
 
 ---
 
