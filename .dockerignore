@@ -1,0 +1,5 @@
+apache-tomcat*
+jdk-25*
+target/
+.git/
+*.sh

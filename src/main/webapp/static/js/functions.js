@@ -3,10 +3,62 @@ const CTX = '';
 const EVALUATE_URL  = CTX + '/evaluate';
 const CALCULATE_URL = CTX + '/calculate';
 const HISTORY_URL   = CTX + '/history';
+const THEME_STORAGE_KEY = 'calculator-theme';
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const output = document.getElementById('output-screen');
 let currentAbortController = null;
+
+function sanitizeExpressionInput(value) {
+    if (!value) return '';
+    return value
+        .replace(/[A-Za-z]/g, '')
+        .replace(/[^0-9+\-*/%.()^\s]/g, '');
+}
+
+function handleShortcutKey(key) {
+    var k = String(key || '').toLowerCase();
+    switch (k) {
+        case 'f': calculateFactorial(); return true;
+        case 'g': calculateGCD(); return true;
+        case 'l': calculateLCM(); return true;
+        case 'm': calculateMod(); return true;
+        case 'p': checkPrime(); return true;
+        case 'h': displayHistory(); return true;
+        default: return false;
+    }
+}
+
+output.addEventListener('beforeinput', function(event) {
+    if (event.inputType && event.inputType.startsWith('delete')) return;
+    if (typeof event.data !== 'string' || event.data.length === 0) return;
+
+    if (/^[A-Za-z]$/.test(event.data)) {
+        event.preventDefault();
+        handleShortcutKey(event.data);
+        return;
+    }
+
+    var cleaned = sanitizeExpressionInput(event.data);
+    if (cleaned !== event.data) {
+        event.preventDefault();
+    }
+});
+
+output.addEventListener('paste', function(event) {
+    event.preventDefault();
+    var pasted = (event.clipboardData || window.clipboardData).getData('text') || '';
+    var cleaned = sanitizeExpressionInput(pasted);
+    if (!cleaned) return;
+
+    var start = output.selectionStart;
+    var end = output.selectionEnd;
+    var val = output.value;
+    output.value = val.slice(0, start) + cleaned + val.slice(end);
+    var newPos = start + cleaned.length;
+    output.setSelectionRange(newPos, newPos);
+    output.scrollLeft = output.scrollWidth;
+});
 
 // ─── History State & Cache ────────────────────────────────────────────────────
 let historyCache     = null;
@@ -17,6 +69,12 @@ var _fullResultCache = {};
 
 var _lastTapTime = 0;
 output.addEventListener('input', function(event) {
+    var cleaned = sanitizeExpressionInput(this.value);
+    if (cleaned !== this.value) {
+        this.value = cleaned;
+        this.scrollLeft = this.scrollWidth;
+    }
+
     // Only run this on mobile
     if (!isMobile()) return;
 
@@ -70,11 +128,48 @@ document.body.appendChild(overlay);
 
 function setLoading(on) { overlay.classList.toggle('active', on); }
 
-if (navigator.maxTouchPoints > 0) {
-    document.body.classList.add('dark-mode');
-    var modeBtn = document.querySelector('.toggle-mode');
-    if (modeBtn) modeBtn.textContent = 'Light Mode';
+function updateThemeButtonLabel() {
+    var btn = document.querySelector('.toggle-mode');
+    if (btn) {
+        btn.textContent = document.body.classList.contains('dark-mode') ? 'Light Mode' : 'Dark Mode';
+    }
+}
 
+function saveThemePreference(mode) {
+    try { localStorage.setItem(THEME_STORAGE_KEY, mode); }
+    catch (_) {}
+}
+
+function getSavedThemePreference() {
+    try { return localStorage.getItem(THEME_STORAGE_KEY); }
+    catch (_) { return null; }
+}
+
+function applyTheme(mode) {
+    document.body.classList.toggle('dark-mode', mode === 'dark');
+    updateThemeButtonLabel();
+}
+
+function initializeTheme() {
+    var savedTheme = getSavedThemePreference();
+    if (savedTheme === 'dark' || savedTheme === 'light') {
+        applyTheme(savedTheme);
+        return;
+    }
+
+    // Default to dark mode on touch devices only when no preference is saved.
+    if (navigator.maxTouchPoints > 0) {
+        applyTheme('dark');
+        saveThemePreference('dark');
+        return;
+    }
+
+    applyTheme('light');
+}
+
+initializeTheme();
+
+if (navigator.maxTouchPoints > 0) {
     var notesBtn = document.querySelector('.show-notes-button');
     if (notesBtn) notesBtn.style.display = 'none';
 }
@@ -84,6 +179,7 @@ async function postForm(url, params) {
     currentAbortController = new AbortController();
     const res = await fetch(url, {
         method: 'POST',
+        headers: { 'X-Calculator-Client': 'true' },
         body: new URLSearchParams(params),
         signal: currentAbortController.signal
     });
@@ -285,7 +381,8 @@ function validateExpression(expr) {
 // ─── Calculator Operations ────────────────────────────────────────────────────
 
 async function Calculate() {
-    var expression = output.value.trim();
+    var expression = sanitizeExpressionInput(output.value).trim();
+    output.value = expression;
     if (!expression) return;
 
     if (!(await ensureNotBusy('Calculate (=)'))) return;
@@ -304,7 +401,6 @@ async function Calculate() {
 
     var validationError = validateExpression(expression);
     if (validationError) {
-        showNotice(validationError);
         return;
     }
 
@@ -594,8 +690,9 @@ function toggleNotes() {
 
 function toggleDarkMode() {
     document.body.classList.toggle('dark-mode');
-    var btn = document.querySelector('.toggle-mode.dark-mode');
-    if (btn) btn.textContent = document.body.classList.contains('dark-mode') ? 'Light Mode' : 'Dark Mode';
+    var currentTheme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+    saveThemePreference(currentTheme);
+    updateThemeButtonLabel();
 }
 
 // ─── History Logic ────────────────────────────────────────────────────────────
@@ -889,6 +986,12 @@ document.addEventListener('keydown', function(event) {
 
     var focusedOnOutput = (document.activeElement === output);
 
+    if (focusedOnOutput && /^[a-zA-Z]$/.test(event.key)) {
+        event.preventDefault();
+        handleShortcutKey(event.key);
+        return;
+    }
+
     if (event.key === 'Enter') {
         event.preventDefault(); Calculate();
     } else if (event.key === 'Backspace' && event.ctrlKey) {
@@ -897,21 +1000,8 @@ document.addEventListener('keydown', function(event) {
         event.preventDefault(); Delete();
     } else if ((event.key >= '0' && event.key <= '9') || ['+', '-', '*', '/', '%'].includes(event.key)) {
         if (!focusedOnOutput) { event.preventDefault(); display(event.key); }
-    } else if (!focusedOnOutput || isMobile() || isDesktop()) {
-        var k = event.key;
-        if (k.toLowerCase() === 'f') {
-            event.preventDefault(); calculateFactorial();
-        } else if (k.toLowerCase() === 'g') {
-            event.preventDefault(); calculateGCD();
-        } else if (k.toLowerCase() === 'l') {
-            event.preventDefault(); calculateLCM();
-        } else if (k.toLowerCase() === 'm') {
-            event.preventDefault(); calculateMod();
-        } else if (k.toLowerCase() === 'p') {
-            event.preventDefault(); checkPrime();
-        } else if (k.toLowerCase() === 'h') {
-            event.preventDefault(); displayHistory();
-        }
+    } else if (!focusedOnOutput && handleShortcutKey(event.key)) {
+        event.preventDefault();
     }
 });
 
@@ -940,8 +1030,16 @@ setInterval(clock, 1000);
 window.addEventListener('load', async function() {
     try {
         var resetParams = new URLSearchParams({ action: 'ping', forceReset: 'true' });
-        await fetch(CALCULATE_URL, { method: 'POST', body: resetParams });
-        await fetch(EVALUATE_URL,  { method: 'POST', body: resetParams });
+        await fetch(CALCULATE_URL, {
+            method: 'POST',
+            headers: { 'X-Calculator-Client': 'true' },
+            body: resetParams
+        });
+        await fetch(EVALUATE_URL, {
+            method: 'POST',
+            headers: { 'X-Calculator-Client': 'true' },
+            body: resetParams
+        });
         console.log('Session locks reset on load.');
     } catch (e) {
         console.warn('Initial server sync failed. Server might be offline.');
