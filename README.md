@@ -84,6 +84,18 @@ $TOMCAT_HOME/bin/startup.sh
 
 Then open: `http://localhost:8080/`
 
+### Docker (Quick Start)
+```bash
+# 1. Install OS-Specific Docker Engine
+# https://docs.docker.com/engine/install/
+
+# 2. Pull and run your app
+docker run -d -p 8080:8080 --name calculator srikanthrl2003/calculator-app:latest
+
+# 3. Open browser
+http://localhost:8080
+```
+
 ---
 
 ## 👨‍💻 Creator

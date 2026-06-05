@@ -17,10 +17,16 @@ docker ps -a
 ## View live logs
 docker logs -f calculator
 
+## Rename container
+docker rename calc calculator
+
 ## Stop / Start / Restart
 docker stop calculator
 docker start calculator
 docker restart calculator
+
+## Stop all running containers
+docker stop $(docker ps -q)
 
 ## Remove container
 docker rm calculator
