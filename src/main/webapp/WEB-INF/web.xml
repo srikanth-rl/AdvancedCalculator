@@ -19,6 +19,14 @@
         <filter-name>HistoryAccessFilter</filter-name>
         <url-pattern>/history</url-pattern>
     </filter-mapping>
+    <filter-mapping>
+        <filter-name>HistoryAccessFilter</filter-name>
+        <url-pattern>/calculate</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>HistoryAccessFilter</filter-name>
+        <url-pattern>/evaluate</url-pattern>
+    </filter-mapping>
 
     <filter>
         <filter-name>CORSFilter</filter-name>
