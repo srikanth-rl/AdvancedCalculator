@@ -12,7 +12,7 @@ import jakarta.servlet.annotation.WebFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-@WebFilter(urlPatterns = {"/history", "/calculate", "/evaluate"})
+@WebFilter(urlPatterns = {"/history*", "/calculate*", "/evaluate*"})
 public class HistoryAccessFilter implements Filter {
 
     private static final String REQUIRED_HEADER       = "X-Calculator-Client";
@@ -28,6 +28,12 @@ public class HistoryAccessFilter implements Filter {
         HttpServletRequest  req  = (HttpServletRequest)  request;
         HttpServletResponse resp = (HttpServletResponse) response;
 
+        // Never allow direct GET on compute endpoints.
+        if ("GET".equalsIgnoreCase(req.getMethod()) && isComputeEndpoint(req)) {
+            writeForbidden(resp);
+            return;
+        }
+
         // Always allow preflight OPTIONS through (CORS handshake)
         if ("OPTIONS".equalsIgnoreCase(req.getMethod())) {
             chain.doFilter(request, response);
@@ -35,7 +41,8 @@ public class HistoryAccessFilter implements Filter {
         }
 
         String headerVal = req.getHeader(REQUIRED_HEADER);
-        boolean isForceResetPing = "true".equalsIgnoreCase(req.getParameter("forceReset"))
+        boolean isForceResetPing = "POST".equalsIgnoreCase(req.getMethod())
+            && "true".equalsIgnoreCase(req.getParameter("forceReset"))
             && "ping".equalsIgnoreCase(req.getParameter("action"));
         boolean isSameOriginRequest = isSameOrigin(req);
 
@@ -44,17 +51,26 @@ public class HistoryAccessFilter implements Filter {
             chain.doFilter(request, response);
         } else {
             // Direct browser tab access / curl without header — block it
-            resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            resp.setContentType("text/html;charset=UTF-8");
-            resp.getWriter().print(
-                "<!DOCTYPE html><html><head><title>403 Forbidden</title>" +
-                "<link rel=\"icon\" href=\"data:,\" />" +
-                "</head>" +
-                "<body><h2>403 Forbidden</h2>" +
-                "<p>This endpoint is not accessible directly.</p>" +
-                "</body></html>"
-            );
+            writeForbidden(resp);
         }
+    }
+
+    private boolean isComputeEndpoint(HttpServletRequest req) {
+        String servletPath = req.getServletPath();
+        return "/calculate".equals(servletPath) || "/evaluate".equals(servletPath);
+    }
+
+    private void writeForbidden(HttpServletResponse resp) throws IOException {
+        resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        resp.setContentType("text/html;charset=UTF-8");
+        resp.getWriter().print(
+            "<!DOCTYPE html><html><head><title>403 Forbidden</title>" +
+            "<link rel=\"icon\" href=\"data:,\" />" +
+            "</head>" +
+            "<body><h2>403 Forbidden</h2>" +
+            "<p>This endpoint is not accessible directly.</p>" +
+            "</body></html>"
+        );
     }
 
     private boolean isSameOrigin(HttpServletRequest req) {

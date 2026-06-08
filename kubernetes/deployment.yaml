@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calculator-app
+spec:
+  replicas: 2                          # 2 pods — handles concurrent heavy calculations
+  selector:
+    matchLabels:
+      app: calculator
+  template:
+    metadata:
+      labels:
+        app: calculator
+    spec:
+      containers:
+        - name: calculator
+          image: srikanthrl2003/calculator-app:latest
+          imagePullPolicy: Always      # always pull latest from Docker Hub
+          ports:
+            - containerPort: 8080      # Tomcat port inside container
+
+---
+# HPA — auto scales pods based on CPU usage
+# When app does heavy math (factorial, prime) — needs auto scaling
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: calculator-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: calculator-app
+  minReplicas: 1                       # min 1 pod always running
+  maxReplicas: 3                       # max 3 pods on traffic spike
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70       # scale up when CPU hits 70%

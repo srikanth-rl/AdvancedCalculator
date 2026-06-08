@@ -53,3 +53,4 @@ apache-tomcat-11.0.0-M1.tar.gz
 # ==============================
 *.tmp
 *.swp
+stop.sh

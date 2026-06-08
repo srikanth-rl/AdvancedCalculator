@@ -1,0 +1,49 @@
+name: Build & Push to Docker Hub
+
+# Runs on every push to main branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Get code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Enable multi-platform builds (amd64 + arm64)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Login to Docker Hub using GitHub Secrets
+      # Add secrets at: repo → Settings → Secrets → Actions
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      # Build for both x64 + ARM64 (Oracle VM is ARM64)
+        # Reason: GitHub Actions runners are x86_64 (amd64). 
+        # If you only built for amd64, the image would either fail or 
+        # run under emulation on your OCI VM — slow and unreliable. 
+        # Building both means the same image tag works correctly on any machine, 
+        # including your local Linux laptop (amd64) for testing.
+
+      # Pushes two tags: latest + commit SHA (for versioning) VM uses latest build
+      # cache-from/to = reuses layers from last build (it uses existing cached maven, on build no need for re download)
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/calculator-app:latest
+            ${{ secrets.DOCKER_USERNAME }}/calculator-app:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/calculator-app:cache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/calculator-app:cache,mode=max

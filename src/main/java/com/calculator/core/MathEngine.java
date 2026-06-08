@@ -105,6 +105,7 @@ public final class MathEngine {
     
     private static final int    FACTORIAL_LEAF      = 1024;
     private static final long MAX_FACTORIAL    = 3_000_000L;
+    private static final BigInteger MAX_FACTORIAL_BI = BigInteger.valueOf(MAX_FACTORIAL);
     private static final int  MAX_PRIME_DIGITS = 7_000;
 
     private MathEngine() {}
@@ -225,16 +226,26 @@ public final class MathEngine {
         String key    = "fact:" + numStr.trim();
         String cached = CACHE.get(key); if (cached != null) return cached;
 
-        long n;
-        try { 
-            n = new BigDecimal(numStr.trim()).longValueExact();
-        } catch (ArithmeticException e) {
-            throw new IllegalArgumentException("Input must be a number that fits in 64 bits.");
+        BigDecimal parsed;
+        try {
+            parsed = new BigDecimal(numStr.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid input. Please enter a valid number.");
         }
-        if (n < 0) throw new IllegalArgumentException("Factorial is not defined for negative numbers.");
-        if (n > MAX_FACTORIAL) throw new IllegalArgumentException(
+
+        BigInteger nBig;
+        try {
+            nBig = parsed.toBigIntegerExact();
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException("Factorial is defined only for whole numbers.");
+        }
+
+        if (nBig.signum() < 0) throw new IllegalArgumentException("Factorial is not defined for negative numbers.");
+        if (nBig.compareTo(MAX_FACTORIAL_BI) > 0) throw new IllegalArgumentException(
             "Input is too large. Maximum supported factorial is 3,000,000 (3 M)! " +
             "Please reduce input and try again.");
+
+        long n = nBig.longValueExact();
 
         memoryGuard("factorial");
         if (tok != null) tok.checkCancelled();

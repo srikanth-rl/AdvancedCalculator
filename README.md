@@ -84,7 +84,7 @@ $TOMCAT_HOME/bin/startup.sh
 
 Then open: `http://localhost:8080/`
 
-### Docker (Quick Start)
+### 🐳 Docker (Quick Start)
 ```bash
 # 1. Install OS-Specific Docker Engine
 # https://docs.docker.com/engine/install/
@@ -95,7 +95,69 @@ docker run -d -p 8080:8080 --name calculator srikanthrl2003/calculator-app:lates
 # 3. Open browser
 http://localhost:8080
 ```
-
+The image is multi-platform — works on both `linux/amd64` (most laptops) and `linux/arm64` (Oracle Cloud Ampere A1) for fast local testing and seamless cloud deployment.
+ 
+---
+ 
+### ☸️ Kubernetes (Minikube)
+ 
+Run the app locally with auto-scaling using the provided manifests.
+ 
+```bash
+# 1. Start minikube
+minikube start --driver=docker
+ 
+# 2. Enable metrics-server (required for HPA)
+minikube addons enable metrics-server
+ 
+# 3. Apply all manifests
+kubectl apply -f kubernetes/
+ 
+# 4. Watch pods come up
+kubectl get pods -w
+ 
+# 5. Get the app URL
+minikube service calculator-service --url
+```
+ 
+**What gets deployed:**
+ 
+| Resource | Config |
+|----------|--------|
+| Deployment | 2 pods, `imagePullPolicy: Always` |
+| Service | NodePort `:30080`, SessionAffinity: ClientIP (30 min) |
+| HPA | CPU target 70%, min 1 pod → max 3 pods |
+ 
+> **SessionAffinity** ensures the same user always hits the same pod, so calculation history is preserved when multiple pods are running.
+ 
+> **For Oracle OKE (production):** change `type: NodePort` to `type: LoadBalancer` in `service.yaml` — the cloud assigns an external IP automatically.
+ 
+---
+ 
+### ⚙️ CI/CD Pipeline (GitHub Actions)
+ 
+Every push to `main` automatically:
+1. Builds a multi-platform Docker image (`amd64` + `arm64`)
+2. Pushes two tags to Docker Hub:
+   - `latest` — used by the OCI VM on every restart
+   - `<commit-sha>` — immutable snapshot for safe rollbacks
+```
+git push origin main
+       ↓
+ GitHub Actions builds image
+       ↓
+ Pushes to Docker Hub
+       ↓
+ OCI VM pulls latest on next deploy
+```
+ 
+**Required GitHub Secrets** (`Settings → Secrets → Actions`):
+ 
+| Secret | Value |
+|--------|-------|
+| `DOCKER_USERNAME` | your Docker Hub username |
+| `DOCKER_TOKEN` | Docker Hub access token (Read & Write) |
+ 
 ---
 
 ## 👨‍💻 Creator

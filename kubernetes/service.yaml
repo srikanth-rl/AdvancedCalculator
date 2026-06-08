@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: calculator-service
+spec:
+  selector:
+    app: calculator                    # routes traffic to pods with this label
+  ports:
+    - port: 80                         # port you hit from outside
+      targetPort: 8080                 # port inside container (Tomcat)
+      nodePort: 30080                  # fixed port on minikube node
+  type: NodePort                       # For OKE (in public cloud), we need to change type to LoadBalancer and remove nodePort (cloud assigns it automatically)
+
+  # Routes same user IP to same pod — prevents losing session history
+  # when multiple pods are running
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 1800             # 30 min — matches Tomcat session timeout
