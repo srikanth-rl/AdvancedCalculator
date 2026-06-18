@@ -10,6 +10,42 @@
     <welcome-file-list>
         <welcome-file>index.html</welcome-file>
     </welcome-file-list>
+    
+        <!-- Browser Binding Filter -->
+    <filter>
+        <filter-name>BrowserBindingFilter</filter-name>
+        <filter-class>com.calculator.filter.BrowserBindingFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>BrowserBindingFilter</filter-name>
+        <url-pattern>/calculate</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>BrowserBindingFilter</filter-name>
+        <url-pattern>/history</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>BrowserBindingFilter</filter-name>
+        <url-pattern>/evaluate</url-pattern>
+    </filter-mapping>
+
+    <!-- CSRF Protection Filter -->
+    <filter>
+        <filter-name>CsrfProtectionFilter</filter-name>
+        <filter-class>com.calculator.filter.CsrfProtectionFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>CsrfProtectionFilter</filter-name>
+        <url-pattern>/calculate</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>CsrfProtectionFilter</filter-name>
+        <url-pattern>/history</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>CsrfProtectionFilter</filter-name>
+        <url-pattern>/evaluate</url-pattern>
+    </filter-mapping>
 
     <filter>
         <filter-name>HistoryAccessFilter</filter-name>

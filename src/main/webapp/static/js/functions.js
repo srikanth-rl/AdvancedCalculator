@@ -1,31 +1,138 @@
-// ─── Context path ─────────────────────────────────────────────────────────────
+// ─── Context path ───
 const CTX = '';
 const EVALUATE_URL  = CTX + '/evaluate';
 const CALCULATE_URL = CTX + '/calculate';
 const HISTORY_URL   = CTX + '/history';
+const CSRF_URL      = CTX + '/csrf';
 const THEME_STORAGE_KEY = 'calculator-theme';
 
-// ─── DOM refs ─────────────────────────────────────────────────────────────────
+let _csrfToken = null;
+
+function getBsec()        { try { return localStorage.getItem('_bsec') || ''; }  catch(_) { return ''; } }
+function setBsec(v)       { try { localStorage.setItem('_bsec', v); }            catch(_) {} }
+function clearBsec()      { try { localStorage.removeItem('_bsec'); }            catch(_) {} }
+
+async function fetchCsrfToken() {
+    const bsec   = getBsec();
+    const pubKey = _bindingKey ? _bindingKey.pubJwk : '';
+    const hdrs = await buildHeaders({ 'X-Public-Key': pubKey });
+    hdrs['X-Browser-Secret'] = bsec;
+    try {
+        let res = await fetch(CSRF_URL, { headers: hdrs });
+        if (res.status === 401) {
+            clearBsec();
+            _csrfToken = null;
+            // Session was invalidated; retry unsigned — server creates a fresh session.
+            res = await fetch(CSRF_URL, {
+                headers: { 'X-Calculator-Client': 'true', 'X-Browser-Secret': '', 'X-Public-Key': pubKey }
+            });
+        }
+        if (res.ok) {
+            const data = await res.json();
+            if (data.csrfToken) {
+                _csrfToken = data.csrfToken;
+                if (data.browserSecret) setBsec(data.browserSecret);
+                console.log('CSRF token acquired.');
+            }
+        } else {
+            console.warn('Failed to acquire CSRF token. Status:', res.status);
+        }
+    } catch (e) {
+        console.warn('Failed to fetch CSRF token:', e);
+    }
+}
+
+// ─── Refresh CSRF token (clears browser secret) ───
+async function refreshCsrfToken() {
+    clearBsec();
+    _csrfToken = null;
+    await fetchCsrfToken();
+}
+
+const _IDB_DB    = 'calc-bind';
+const _IDB_STORE = 'k';
+const _IDB_ITEM  = 'ec';
+let   _bindingKey = null;  
+
+function _openIDB() {
+    return new Promise(function(res, rej) {
+        var r = indexedDB.open(_IDB_DB, 1);
+        r.onupgradeneeded = function(e) { e.target.result.createObjectStore(_IDB_STORE); };
+        r.onsuccess = function(e) { res(e.target.result); };
+        r.onerror   = function(e) { rej(e.target.error); };
+    });
+}
+
+async function initBindingKey() {
+    if (!window.crypto || !window.crypto.subtle || !window.indexedDB) return;
+    try {
+        var db = await _openIDB();
+        var stored = await new Promise(function(res, rej) {
+            var r = db.transaction(_IDB_STORE).objectStore(_IDB_STORE).get(_IDB_ITEM);
+            r.onsuccess = function(e) { res(e.target.result); };
+            r.onerror   = function(e) { rej(e.target.error); };
+        });
+        if (stored && stored.privateKey) { _bindingKey = stored; return; }
+
+        // extractable: false — raw key bytes are sealed and can NEVER be exported.
+        var pair   = await crypto.subtle.generateKey(
+            { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']
+        );
+        var pubJwk = JSON.stringify(await crypto.subtle.exportKey('jwk', pair.publicKey));
+        _bindingKey = { privateKey: pair.privateKey, pubJwk: pubJwk };
+
+        var db2 = await _openIDB();
+        await new Promise(function(res, rej) {
+            var tx  = db2.transaction(_IDB_STORE, 'readwrite');
+            var req = tx.objectStore(_IDB_STORE).put(_bindingKey, _IDB_ITEM);
+            req.onsuccess = function() { res(); };
+            req.onerror   = function(e) { rej(e.target.error); };
+        });
+    } catch (e) { console.warn('Binding key init failed:', e); }
+}
+
+// ─── Build request headers with optional extra fields ───
+async function buildHeaders(extra) {
+    var h = Object.assign({
+        'X-Calculator-Client': 'true',
+        'X-CSRF-Token':     _csrfToken || '',
+        'X-Browser-Secret': getBsec()
+    }, extra || {});
+    if (_bindingKey) {
+        try {
+            var ts  = Date.now().toString();
+            var buf = await crypto.subtle.sign(
+                { name: 'ECDSA', hash: { name: 'SHA-256' } },
+                _bindingKey.privateKey,
+                new TextEncoder().encode(ts)
+            );
+            h['X-Sig-Ts'] = ts;
+            h['X-Sig']    = btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+        } catch (_e) { /* degrade without signature if crypto unavailable */ }
+    }
+    return h;
+}
 const output = document.getElementById('output-screen');
 let currentAbortController = null;
 
+// ─── Input sanitization ───
 function sanitizeExpressionInput(value) {
     if (!value) return '';
     return value
-        .replace(/[A-Za-z]/g, '')
-        .replace(/[^0-9+\-*/%.()^\s]/g, '');
+        .replace(/[A-Da-dF-Zf-z]/g, '')       // strip letters except e/E
+        .replace(/[^0-9+\-*/%.()^\seE]/g, ''); // strip any remaining non-expression chars
 }
 
 function handleShortcutKey(key) {
     var k = String(key || '').toLowerCase();
     switch (k) {
         case 'f': calculateFactorial(); return true;
-        case 'g': calculateGCD(); return true;
-        case 'l': calculateLCM(); return true;
-        case 'm': calculateMod(); return true;
-        case 'p': checkPrime(); return true;
-        case 'h': displayHistory(); return true;
-        default: return false;
+        case 'g': calculateGCD();       return true;
+        case 'l': calculateLCM();       return true;
+        case 'm': calculateMod();       return true;
+        case 'p': checkPrime();         return true;
+        case 'h': displayHistory();     return true;
+        default:  return false;
     }
 }
 
@@ -34,6 +141,8 @@ output.addEventListener('beforeinput', function(event) {
     if (typeof event.data !== 'string' || event.data.length === 0) return;
 
     if (/^[A-Za-z]$/.test(event.data)) {
+        // Allow e/E through — used for scientific notation (e.g. 1e10, 2.5E+6)
+        if (event.data === 'e' || event.data === 'E') return;
         event.preventDefault();
         handleShortcutKey(event.data);
         return;
@@ -52,15 +161,15 @@ output.addEventListener('paste', function(event) {
     if (!cleaned) return;
 
     var start = output.selectionStart;
-    var end = output.selectionEnd;
-    var val = output.value;
+    var end   = output.selectionEnd;
+    var val   = output.value;
     output.value = val.slice(0, start) + cleaned + val.slice(end);
     var newPos = start + cleaned.length;
     output.setSelectionRange(newPos, newPos);
     output.scrollLeft = output.scrollWidth;
 });
 
-// ─── History State & Cache ────────────────────────────────────────────────────
+// ─── History State & Cache ───
 let historyCache     = null;
 let isHistoryDirty   = true;
 let isHistoryLoading = false;
@@ -71,14 +180,19 @@ var _lastTapTime = 0;
 output.addEventListener('input', function(event) {
     var cleaned = sanitizeExpressionInput(this.value);
     if (cleaned !== this.value) {
+        var pos = this.selectionStart;
+        var removed = this.value.substring(0, pos)
+            .split('').filter(function(c) { return !sanitizeExpressionInput(c); }).length;
         this.value = cleaned;
+        var newPos = Math.max(0, pos - removed);
+        this.setSelectionRange(newPos, newPos);
         this.scrollLeft = this.scrollWidth;
     }
 
-    // Only run this on mobile
+    // Mobile shortcut detection — only on mobile
     if (!isMobile()) return;
 
-    const val = this.value;
+    const val      = this.value;
     const lastChar = val.slice(-1).toLowerCase();
 
     const shortcuts = {
@@ -92,12 +206,24 @@ output.addEventListener('input', function(event) {
 
     if (shortcuts[lastChar]) {
         this.value = val.slice(0, -1);
-        
         shortcuts[lastChar]();
     }
 });
 
-// ─── Request lock ─────────────────────────────────────────────────────────────
+// ─── e-notation display helper ───
+function displayENotation() {
+    clearNotice();
+    var start = output.selectionStart;
+    var end   = output.selectionEnd;
+    var val   = output.value;
+    output.value = val.slice(0, start) + 'e' + val.slice(end);
+    var newPos = start + 1;
+    output.setSelectionRange(newPos, newPos);
+    output.focus();
+    output.scrollLeft = output.scrollWidth;
+}
+
+// ─── Request lock ───
 let isRequestInProgress = false;
 
 function setRequestLock(v) { isRequestInProgress = v; }
@@ -120,7 +246,7 @@ window.addEventListener('resize', function() {
     }
 });
 
-// ─── Loading overlay ──────────────────────────────────────────────────────────
+// ─── Loading overlay ───
 const overlay = document.createElement('div');
 overlay.className = 'loading-overlay';
 overlay.innerHTML = '<div class="spinner"></div>';
@@ -136,13 +262,11 @@ function updateThemeButtonLabel() {
 }
 
 function saveThemePreference(mode) {
-    try { localStorage.setItem(THEME_STORAGE_KEY, mode); }
-    catch (_) {}
+    try { localStorage.setItem(THEME_STORAGE_KEY, mode); } catch (_) {}
 }
 
 function getSavedThemePreference() {
-    try { return localStorage.getItem(THEME_STORAGE_KEY); }
-    catch (_) { return null; }
+    try { return localStorage.getItem(THEME_STORAGE_KEY); } catch (_) { return null; }
 }
 
 function applyTheme(mode) {
@@ -157,7 +281,7 @@ function initializeTheme() {
         return;
     }
 
-    // Default to dark mode on touch devices only when no preference is saved.
+    // Default to dark mode on touch devices when no preference is saved.
     if (navigator.maxTouchPoints > 0) {
         applyTheme('dark');
         saveThemePreference('dark');
@@ -174,29 +298,50 @@ if (navigator.maxTouchPoints > 0) {
     if (notesBtn) notesBtn.style.display = 'none';
 }
 
-// ─── Generic POST ─────────────────────────────────────────────────────────────
+// ─── Generic POST ───
 async function postForm(url, params) {
     currentAbortController = new AbortController();
-    const res = await fetch(url, {
+    const sig = currentAbortController.signal;
+    const makeReq = async () => fetch(url, {
         method: 'POST',
-        headers: { 'X-Calculator-Client': 'true' },
+        headers: await buildHeaders(),
         body: new URLSearchParams(params),
-        signal: currentAbortController.signal
+        signal: sig
     });
+    let res = await makeReq();
+    // 401 = session hijack detected / session expired; 403 = CSRF invalid.
+    // Transparently refresh tokens (creates fresh session) and retry once.
+    if (res.status === 401 || res.status === 403) {
+        await refreshCsrfToken();
+        res = await makeReq();
+    }
     const text = await res.text();
     try { return JSON.parse(text); }
-    catch (_) { return { success: false, error: 'Server returned invalid response (HTTP ' + res.status + ').' }; }
+    catch (_) {
+        if (res.status === 401) return { success: false, error: 'Session expired. Please refresh the page.' };
+        if (res.status === 403) return { success: false, error: 'Access denied. Please refresh the page.' };
+        return { success: false, error: 'Server returned invalid response (HTTP ' + res.status + ').' };
+    }
 }
 
-// ─── GET with error surfacing ─────────────────────────────────────────────────
+// ─── GET with error surfacing ───
 async function getJson(url) {
-    const res  = await fetch(url, { headers: { 'X-Calculator-Client': 'true' } });
+    const makeReq = async () => fetch(url, { headers: await buildHeaders() });
+    let res = await makeReq();
+    if (res.status === 401 || res.status === 403) {
+        await refreshCsrfToken();
+        res = await makeReq();
+    }
     const text = await res.text();
     try { return { ok: res.ok, data: JSON.parse(text) }; }
-    catch (_) { return { ok: false, data: { success: false, error: 'Server returned invalid response (HTTP ' + res.status + ').' } }; }
+    catch (_) {
+        if (res.status === 401) return { ok: false, data: { success: false, error: 'Session expired. Please refresh the page.' } };
+        if (res.status === 403) return { ok: false, data: { success: false, error: 'Access denied. Please refresh the page.' } };
+        return { ok: false, data: { success: false, error: 'Server returned invalid response (HTTP ' + res.status + ').' } };
+    }
 }
 
-// ─── Kill backend computation ─────────────────────────────────────────────────
+// ─── Kill backend computation ───
 function killBackendComputation() {
     if (currentAbortController) {
         currentAbortController.abort();
@@ -207,7 +352,7 @@ function killBackendComputation() {
     navigator.sendBeacon(EVALUATE_URL  + resetUrl, new Blob([]));
 }
 
-// ─── Busy-guard confirm dialog ────────────────────────────────────────────────
+// ─── Busy-guard confirm dialog ───
 function showBusyConfirm(actionLabel) {
     return new Promise(function(resolve) {
         var existing = document.getElementById('busy-confirm-backdrop');
@@ -260,7 +405,7 @@ async function ensureNotBusy(actionLabel) {
     return false;
 }
 
-// ─── Input Modal ──────────────────────────────────────────────────────────────
+// ─── Input Modal ────
 function showInputModal(title, placeholder, prefill) {
     if (prefill === undefined) prefill = '';
     return new Promise(function(resolve) {
@@ -363,9 +508,8 @@ function mapError(err) {
     return e;
 }
 
-// ─── Expression validator — allow digits, operators, parens, dot, and 'e'/'E' only ──
+// ─── Expression validator ───
 function validateExpression(expr) {
-    // Allow: 0-9, +, -, *, /, %, ., (, ), ^, space, and 'e'/'E' for scientific notation
     var invalidChar = expr.match(/[^0-9+\-*/%.()\^eE\s]/);
     if (invalidChar) {
         return 'Invalid character "' + invalidChar[0] + '" — only digits, operators, parentheses, and "e" notation are allowed.';
@@ -375,10 +519,10 @@ function validateExpression(expr) {
             return 'Invalid "e" notation — use format like 1e9 or 1.5e+10.';
         }
     }
-    return null; 
+    return null;
 }
 
-// ─── Calculator Operations ────────────────────────────────────────────────────
+// ─── Calculator Operations ───
 
 async function Calculate() {
     var expression = sanitizeExpressionInput(output.value).trim();
@@ -423,7 +567,8 @@ async function Calculate() {
         } else {
             setLoading(false);
             setRequestLock(false);
-            showNotice(mapError(data.error));        }
+            showNotice(mapError(data.error));
+        }
     } catch (e) {
         if (e.name !== 'AbortError') showNotice('Network error — please check your connection and try again.');
     } finally {
@@ -551,7 +696,7 @@ async function calculateLCM() {
             showNotice(mapError(data.error));
         }
     } catch (e) {
-        if (e.name !== 'AbortError') showNotice('Network error — please try agairialn.');
+        if (e.name !== 'AbortError') showNotice('Network error — please try again.');
     } finally {
         setLoading(false);
         setRequestLock(false);
@@ -695,7 +840,7 @@ function toggleDarkMode() {
     updateThemeButtonLabel();
 }
 
-// ─── History Logic ────────────────────────────────────────────────────────────
+// ─── History Logic ───
 
 async function saveHistory(expression, result, digitLength, verdict) {
     var digitsLength = (digitLength > 0) ? (digitLength + ' digits') : '';
@@ -707,7 +852,7 @@ async function saveHistory(expression, result, digitLength, verdict) {
 
         var res = await fetch(HISTORY_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Calculator-Client': 'true' },
+            headers: Object.assign({ 'Content-Type': 'application/json' }, await buildHeaders()),
             body: JSON.stringify(payload)
         });
         if (!res.ok) { console.error('History save failed:', res.status); return; }
@@ -732,7 +877,7 @@ async function displayHistory() {
     if (!isHistoryDirty && historyCache) { renderHistory(historyCache); return; }
     if (isHistoryLoading) return;
 
-    // ─── Show inline loading skeleton ────────────────────────────────────────
+    // ─── Show inline loading skeleton ────
     historyBar.innerHTML =
         '<div class="history-scroll-wrapper" style="padding:12px 10px;">' +
             '<div class="history-loading-row"></div>' +
@@ -815,7 +960,7 @@ function renderHistory(historyArray) {
             var btnCol = document.createElement('div');
             btnCol.className = 'history-btn-col';
 
-            // ─── Resolve full text for this entry ────────────────────────────
+            // ─── Resolve full text for this entry ───
             (function(e, isPrime, digits) {
                 var cacheKey = isPrime
                     ? ('checkPrime{' + (extractPrimeNumber(e.expression) || '') + '}')
@@ -836,7 +981,6 @@ function renderHistory(historyArray) {
                     }
                 }
 
-                // ─── Download button (shown when digits > 1000) ───────────────
                 var DOWNLOAD_THRESHOLD = 1000;
                 var useDownload = digits > DOWNLOAD_THRESHOLD;
 
@@ -870,7 +1014,6 @@ function renderHistory(historyArray) {
                     btnCol.appendChild(dlBtn);
 
                 } else {
-                    // ─── Copy button (shown when digits <= 1000) ─────────────
                     var copyBtn = document.createElement('button');
                     copyBtn.className = 'copy-history-btn';
                     copyBtn.innerHTML = '&#128203;';
@@ -908,6 +1051,7 @@ function renderHistory(historyArray) {
                     btnCol.appendChild(copyBtn);
                 }
             })(entry, isPrimeEntry, totalDigits);
+
             itemDiv.appendChild(contentSpan);
             itemDiv.appendChild(btnCol);
             scrollWrapper.appendChild(itemDiv);
@@ -963,7 +1107,7 @@ async function clearHistory() {
     try {
         var res = await fetch(HISTORY_URL + '?action=clear', {
             method: 'POST',
-            headers: { 'X-Calculator-Client': 'true' }
+            headers: await buildHeaders()
         }).then(function(r) { return r.json(); });
         if (res.success) {
             historyCache   = [];
@@ -978,7 +1122,7 @@ async function clearHistory() {
     }
 }
 
-// ─── Keyboard handler ─────────────────────────────────────────────────────────
+// ─── Keyboard handler ───
 document.addEventListener('keydown', function(event) {
     if (event.ctrlKey && event.key === 'r') return;
     if (document.querySelector('.modal-backdrop')) return;
@@ -987,6 +1131,8 @@ document.addEventListener('keydown', function(event) {
     var focusedOnOutput = (document.activeElement === output);
 
     if (focusedOnOutput && /^[a-zA-Z]$/.test(event.key)) {
+        // Allow e/E through for scientific notation
+        if (event.key === 'e' || event.key === 'E') return;
         event.preventDefault();
         handleShortcutKey(event.key);
         return;
@@ -1007,37 +1153,45 @@ document.addEventListener('keydown', function(event) {
 
 const timeOffset = 0;
 function clock() {
-    // Get current system time and add the offset
     const now = new Date(new Date().getTime() + timeOffset);
 
     const hr24 = now.getHours();
     const hr12 = hr24 % 12 || 12;
-    
-    document.getElementById('ampm').innerHTML   = hr24 >= 12 ? 'PM' : 'AM';
-    document.getElementById('hrs').innerHTML    = addZero(hr12);
-    document.getElementById('min').innerHTML    = addZero(now.getMinutes());
-    document.getElementById('sec').innerHTML    = addZero(now.getSeconds());
-    
-    document.getElementById('day').innerHTML    = now.toLocaleDateString('en-US', { weekday: 'long' });
-    document.getElementById('month').innerHTML  = now.toLocaleDateString('en-US', { month: 'long' });
-    document.getElementById('date').innerHTML   = now.getDate();
+
+    document.getElementById('ampm').innerHTML  = hr24 >= 12 ? 'PM' : 'AM';
+    document.getElementById('hrs').innerHTML   = addZero(hr12);
+    document.getElementById('min').innerHTML   = addZero(now.getMinutes());
+    document.getElementById('sec').innerHTML   = addZero(now.getSeconds());
+
+    document.getElementById('day').innerHTML   = now.toLocaleDateString('en-US', { weekday: 'long' });
+    document.getElementById('month').innerHTML = now.toLocaleDateString('en-US', { month: 'long' });
+    document.getElementById('date').innerHTML  = now.getDate();
 }
 
 function addZero(n) { return n < 10 ? '0' + n : n; }
 setInterval(clock, 1000);
 
-// ─── Page load — reset any stale backend lock ─────────────────────────────────
+// ─── Page load — fetch CSRF token then reset any stale backend lock ───
 window.addEventListener('load', async function() {
+    await initBindingKey();
+    await fetchCsrfToken();
+
     try {
         var resetParams = new URLSearchParams({ action: 'ping', forceReset: 'true' });
         await fetch(CALCULATE_URL, {
             method: 'POST',
-            headers: { 'X-Calculator-Client': 'true' },
+            headers: {
+                'X-Calculator-Client': 'true',
+                'X-CSRF-Token': _csrfToken || ''
+            },
             body: resetParams
         });
         await fetch(EVALUATE_URL, {
             method: 'POST',
-            headers: { 'X-Calculator-Client': 'true' },
+            headers: {
+                'X-Calculator-Client': 'true',
+                'X-CSRF-Token': _csrfToken || ''
+            },
             body: resetParams
         });
         console.log('Session locks reset on load.');
@@ -1047,7 +1201,7 @@ window.addEventListener('load', async function() {
     setLoading(false);
 });
 
-// ─── beforeunload / pagehide ──────────────────────────────────────────────────
+// ─── beforeunload / pagehide ───
 window.addEventListener('beforeunload', function(event) {
     if (!isRequestInProgress) return;
     event.preventDefault();
@@ -1061,12 +1215,12 @@ window.addEventListener('pagehide', function() {
     navigator.sendBeacon(EVALUATE_URL  + resetUrl, new Blob([]));
 });
 
-// ─── Feedback Modal ───────────────────────────────────────────────────────────
+// ─── Feedback Modal ───
 function toggleFeedback() {
     var existing = document.getElementById('feedback-backdrop');
-    
+
     if (existing) {
-        existing.closeModal(); 
+        existing.closeModal();
         return;
     }
 
@@ -1110,7 +1264,7 @@ function toggleFeedback() {
         document.removeEventListener('keydown', handleEsc);
         backdrop.remove();
     };
-    
+
     backdrop.closeModal = closeModal;
 
     document.addEventListener('keydown', handleEsc);
