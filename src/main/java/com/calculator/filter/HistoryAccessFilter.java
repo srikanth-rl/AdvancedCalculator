@@ -1,10 +1,12 @@
 package com.calculator.filter;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
@@ -17,9 +19,10 @@ public class HistoryAccessFilter implements Filter {
 
     private static final String REQUIRED_HEADER       = "X-Calculator-Client";
     private static final String REQUIRED_HEADER_VALUE = "true";
+    private ServletContext servletCtx;
 
     @Override
-    public void init(FilterConfig filterConfig) throws ServletException {}
+    public void init(FilterConfig filterConfig) throws ServletException { servletCtx = filterConfig.getServletContext(); }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -62,15 +65,16 @@ public class HistoryAccessFilter implements Filter {
 
     private void writeForbidden(HttpServletResponse resp) throws IOException {
         resp.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        resp.setContentType("text/html;charset=UTF-8");
-        resp.getWriter().print(
-            "<!DOCTYPE html><html><head><title>403 Forbidden</title>" +
-            "<link rel=\"icon\" href=\"data:,\" />" +
-            "</head>" +
-            "<body><h2>403 Forbidden</h2>" +
-            "<p>This endpoint is not accessible directly.</p>" +
-            "</body></html>"
-        );
+        resp.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+        try (InputStream img = servletCtx.getResourceAsStream("/static/unauthorized.jpg")) {
+            if (img != null) {
+                resp.setContentType("image/jpeg");
+                img.transferTo(resp.getOutputStream());
+            } else {
+                resp.setContentType("text/plain;charset=UTF-8");
+                resp.getWriter().print("403 Forbidden");
+            }
+        }
     }
 
     private boolean isSameOrigin(HttpServletRequest req) {
